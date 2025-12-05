@@ -16,7 +16,9 @@ const Login: React.FC = () => {
         setError('');
         setLoading(true);
         try {
-            await api.get('/sanctum/csrf-cookie', { baseURL: 'http://localhost:8000' });
+            await api.get('/sanctum/csrf-cookie', {
+                baseURL: import.meta.env.VITE_API_AUTH_URL || 'http://localhost:8000'
+            });
             const response = await api.post('/login', { email, password });
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.user));

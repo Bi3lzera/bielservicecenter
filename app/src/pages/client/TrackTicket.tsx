@@ -3,6 +3,8 @@ import api from '../../services/api';
 import { Link } from 'react-router-dom';
 import { Search, ArrowLeft, Clock, AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, Users, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import NotificationBell from '../../components/NotificationBell';
+
 
 const TrackTicket: React.FC = () => {
     const [uuid, setUuid] = useState('');
@@ -61,10 +63,13 @@ const TrackTicket: React.FC = () => {
             <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-200/20 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
             <div className="max-w-4xl mx-auto relative z-10">
-                <Link to="/" className="inline-flex items-center text-slate-500 hover:text-indigo-600 mb-8 transition-colors group font-medium">
-                    <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-                    Voltar ao Início
-                </Link>
+                <div className="flex justify-between items-center mb-8">
+                    <Link to="/" className="inline-flex items-center text-slate-500 hover:text-indigo-600 transition-colors group font-medium">
+                        <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+                        Voltar ao Início
+                    </Link>
+                    <NotificationBell />
+                </div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

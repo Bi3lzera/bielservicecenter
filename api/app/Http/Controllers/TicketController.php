@@ -6,6 +6,12 @@ use App\Models\Ticket;
 use App\Models\TicketComment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Models\User;
+use App\Notifications\NewTicketNotification;
+use App\Notifications\TicketUpdatedNotification;
+use App\Notifications\NewMessageNotification;
+use App\Notifications\TicketDeletedNotification;
+use Illuminate\Support\Facades\Notification;
 
 class TicketController extends Controller
 {
@@ -32,6 +38,17 @@ class TicketController extends Controller
             'client_name' => $request->client_name,
             'status' => 'Aberto',
         ]);
+
+        // Notify Admins (if any exist)
+        try {
+            $admins = User::where('is_employee', true)->get();
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new NewTicketNotification($ticket));
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't fail the ticket creation
+            \Log::error('Failed to send new ticket notification: ' . $e->getMessage());
+        }
 
         return response()->json(['uuid' => $ticket->uuid], 201);
     }
@@ -127,6 +144,21 @@ class TicketController extends Controller
 
         $ticket->update($request->only(['status', 'deadline']));
 
+        if ($request->has('status')) {
+            try {
+                // Find the ticket owner (client) and notify them specifically
+                $owner = User::where('name', $ticket->client_name)
+                    ->where('is_employee', false)
+                    ->first();
+                
+                if ($owner) {
+                    $owner->notify(new TicketUpdatedNotification($ticket, $request->status));
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send ticket update notification: ' . $e->getMessage());
+            }
+        }
+
         return response()->json($ticket);
     }
 
@@ -156,7 +188,17 @@ class TicketController extends Controller
     public function destroyClient($uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
+        $title = $ticket->title;
+        $ticketUuid = $ticket->uuid;
+        
         $ticket->delete();
+
+        // Notify about deletion
+        try {
+            $ticket->notify(new TicketDeletedNotification($title, $ticketUuid));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send ticket deletion notification: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Ticket deleted successfully']);
     }
@@ -165,7 +207,17 @@ class TicketController extends Controller
     public function destroy($uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
+        $title = $ticket->title;
+        $ticketUuid = $ticket->uuid;
+        
         $ticket->delete();
+
+        // Notify about deletion
+        try {
+            $ticket->notify(new TicketDeletedNotification($title, $ticketUuid));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send ticket deletion notification: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Ticket deleted successfully']);
     }
@@ -195,6 +247,29 @@ class TicketController extends Controller
             'sender_name' => $request->sender_name,
             'sender_type' => $request->sender_type,
         ]);
+
+        $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
+
+        try {
+            if ($request->sender_type === 'client') {
+                // Client sent message - notify all admins
+                $admins = User::where('is_employee', true)->get();
+                if ($admins->isNotEmpty()) {
+                    Notification::send($admins, new NewMessageNotification($ticket, $request->sender_name, $request->message));
+                }
+            } else {
+                // Admin sent message - notify only the ticket owner (client)
+                $owner = User::where('name', $ticket->client_name)
+                    ->where('is_employee', false)
+                    ->first();
+                
+                if ($owner) {
+                    $owner->notify(new NewMessageNotification($ticket, $request->sender_name, $request->message));
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send message notification: ' . $e->getMessage());
+        }
 
         return response()->json($comment, 201);
     }

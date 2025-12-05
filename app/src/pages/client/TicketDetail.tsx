@@ -5,6 +5,9 @@ import { ArrowLeft, Save, Trash2, User, Clock, AlertTriangle } from 'lucide-reac
 import api from '../../services/api';
 import { getClientName, isLoggedIn } from '../../utils/clientAuth';
 import CommentsSection from '../../components/CommentsSection';
+import { echo } from '../../utils/echo';
+import { useNotifications } from '../../contexts/NotificationContext';
+import NotificationBell from '../../components/NotificationBell';
 
 interface Ticket {
     uuid: string;
@@ -23,6 +26,7 @@ const TicketDetail: React.FC = () => {
     const ticketUuid = searchParams.get('uuid');
     const navigate = useNavigate();
     const myName = getClientName();
+    const { addNotification } = useNotifications();
 
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [loading, setLoading] = useState(true);
@@ -44,7 +48,41 @@ const TicketDetail: React.FC = () => {
             return;
         }
         fetchTicket();
-    }, [ticketUuid, navigate]);
+
+        // Listen for updates
+        const channel = echo.channel(`ticket.${ticketUuid}`);
+
+        channel.listen('.App\\Notifications\\TicketUpdatedNotification', (e: any) => {
+            console.log('Ticket Updated:', e);
+            addNotification({
+                id: e.id || Date.now().toString(),
+                type: 'ticket_updated',
+                data: e,
+                read_at: null,
+                created_at: new Date().toISOString()
+            });
+            alert(`Atualização: ${e.message}`);
+            fetchTicket();
+        });
+
+        channel.listen('.App\\Notifications\\NewMessageNotification', (e: any) => {
+            console.log('New Message:', e);
+            if (e.sender !== myName) {
+                addNotification({
+                    id: e.id || Date.now().toString(),
+                    type: 'new_message',
+                    data: e,
+                    read_at: null,
+                    created_at: new Date().toISOString()
+                });
+                alert(`Nova mensagem de ${e.sender}`);
+            }
+        });
+
+        return () => {
+            echo.leave(`ticket.${ticketUuid}`);
+        };
+    }, [ticketUuid, navigate, myName]);
 
     const fetchTicket = async () => {
         try {
@@ -111,10 +149,13 @@ const TicketDetail: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-6 px-4">
             <div className="max-w-7xl mx-auto h-[calc(100vh-3rem)]">
-                <Link to="/client/tickets" className="inline-flex items-center text-slate-500 hover:text-indigo-600 mb-4 transition-colors group font-medium">
-                    <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-                    Voltar aos Chamados
-                </Link>
+                <div className="flex justify-between items-center mb-4">
+                    <Link to="/client/tickets" className="inline-flex items-center text-slate-500 hover:text-indigo-600 transition-colors group font-medium">
+                        <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+                        Voltar aos Chamados
+                    </Link>
+                    <NotificationBell />
+                </div>
 
                 {/* Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-2.5rem)]">
@@ -132,8 +173,8 @@ const TicketDetail: React.FC = () => {
                                         {ticket.status}
                                     </span>
                                     <span className={`px-2 py-1 text-xs font-bold rounded-full ${ticket.urgency === 'Alta' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                                            ticket.urgency === 'Média' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                                'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        ticket.urgency === 'Média' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                            'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                         }`}>
                                         <AlertTriangle className="w-3 h-3 inline mr-1" />
                                         {ticket.urgency}

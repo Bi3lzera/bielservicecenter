@@ -23,6 +23,34 @@ Route::patch('/tickets/{uuid}/feedback', [TicketController::class, 'feedback']);
 Route::get('/tickets/{uuid}/comments', [TicketController::class, 'getComments']);
 Route::post('/tickets/{uuid}/comments', [TicketController::class, 'addComment']);
 
+// Client Auto-Login (creates user if not exists)
+Route::post('/client/auto-login', function (Request $request) {
+    $request->validate([
+        'name' => 'required|string|min:2|max:100',
+    ]);
+
+    $name = $request->name;
+    $email = strtolower(str_replace(' ', '.', $name)) . '@client.local';
+    
+    // Find or create user
+    $user = User::firstOrCreate(
+        ['email' => $email],
+        [
+            'name' => $name,
+            'password' => Hash::make($name), // Deterministic password based on name
+            'is_employee' => false,
+        ]
+    );
+
+    // Create token
+    $token = $user->createToken('client-token')->plainTextToken;
+
+    return response()->json([
+        'token' => $token,
+        'user' => $user
+    ]);
+});
+
 // Auth Route (Simple login for demo purposes)
 Route::post('/login', function (Request $request) {
     $request->validate([
@@ -55,4 +83,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/admin/tickets', [TicketController::class, 'index']);
     Route::put('/admin/tickets/{uuid}', [TicketController::class, 'update']);
     Route::delete('/admin/tickets/{uuid}', [TicketController::class, 'destroy']);
+
+    // Notifications
+    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index']);
+    Route::put('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead']);
+    Route::put('/notifications/read-all', [App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
 });

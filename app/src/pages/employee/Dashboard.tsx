@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard, Clock, AlertTriangle, CheckCircle, XCircle, PlayCircle, Search, Filter, Trash2, User, RotateCcw, MessageCircle, X } from 'lucide-react';
+import { LogOut, LayoutDashboard, Clock, AlertTriangle, CheckCircle, XCircle, PlayCircle, Search, Trash2, User, RotateCcw, MessageCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommentsSection from '../../components/CommentsSection';
 import DateTimePicker from '../../components/DateTimePicker';
+import NotificationBell from '../../components/NotificationBell';
 
 interface Ticket {
     uuid: string;
@@ -137,6 +138,7 @@ const Dashboard: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
+                            <NotificationBell />
                             <div className="hidden md:flex items-center bg-slate-100 rounded-2xl px-4 py-2.5 border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white transition-all w-80">
                                 <Search className="w-5 h-5 text-slate-400 mr-3" />
                                 <input

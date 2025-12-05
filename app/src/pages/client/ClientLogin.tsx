@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, ArrowLeft, LogIn } from 'lucide-react';
-import { setClientName, isLoggedIn } from '../../utils/clientAuth';
+import { isLoggedIn } from '../../utils/clientAuth';
+import api from '../../services/api';
 
 const ClientLogin: React.FC = () => {
     const [name, setName] = useState('');
@@ -16,7 +17,7 @@ const ClientLogin: React.FC = () => {
         }
     }, [navigate]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (name.trim().length < 2) {
@@ -24,8 +25,22 @@ const ClientLogin: React.FC = () => {
             return;
         }
 
-        setClientName(name);
-        navigate('/client/tickets');
+        try {
+            const response = await api.post('/client/auto-login', { name });
+
+            // Store token and user (same as employee login)
+            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+
+            // Update API default headers
+            api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+
+            navigate('/client/tickets');
+        } catch (error: any) {
+            console.error('Auto-login failed:', error);
+            const errorMessage = error.response?.data?.message || 'Erro ao fazer login. Tente novamente.';
+            setError(errorMessage);
+        }
     };
 
     return (
